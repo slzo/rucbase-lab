@@ -153,7 +153,6 @@ TEST_F(BufferPoolManagerTest, SimpleTest) {
 
     disk_manager_->close_file(fd);
 }
-
 /**
  * @brief 在SimpleTest的基础上加大数据量（单文件），生成测试文件large_scale_test
  * @note lab1 计分：10 points
@@ -242,7 +241,6 @@ TEST_F(BufferPoolManagerTest, MultipleFilesTest) {
             Page *page = buffer_pool_manager->NewPage(&tmp_page_id);  // pin the page
             int page_no = tmp_page_id.page_no;
             EXPECT_EQ(page_no, i);
-
             memcpy(page->GetData(), buf, PAGE_SIZE);          // buf -> page
             char *mock_buf = &mock[fd][page_no * PAGE_SIZE];  // get mock address in (fd,page_no)
             memcpy(mock_buf, buf, PAGE_SIZE);                 // buf -> mock

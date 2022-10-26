@@ -50,8 +50,7 @@ void DiskManager::read_page(int fd, page_id_t page_no, char *offset, int num_byt
 page_id_t DiskManager::AllocatePage(int fd) {
     // Todo:
     // 简单的自增分配策略，指定文件的页面编号加1
-    fd2pageno_[fd]++;
-    return fd2pageno_[fd];
+    return fd2pageno_[fd]++;;
 }
 
 /**
@@ -88,8 +87,7 @@ bool DiskManager::is_file(const std::string &path) {
     // Todo:
     // 用struct stat获取文件信息
     struct stat st;
-    int flag = stat(path.c_str(), &st);
-    if( flag == -1 ) //file not exist
+    if( stat(path.c_str(), &st) == -1 ) //file not exist
         return false;
     else
         return true;
@@ -104,7 +102,7 @@ void DiskManager::create_file(const std::string &path) {
     // 注意不能重复创建相同文件
     if( is_file(path) ) //file is already exist
         throw FileExistsError(path);
-    else if( open( path.c_str(), O_CREAT, 0777) == -1 ) // open error
+    else if( open( path.c_str(), O_CREAT|O_RDWR, 0600) == -1 ) // open error
             throw UnixError();
     else return;
 }
@@ -136,14 +134,13 @@ int DiskManager::open_file(const std::string &path) {
         throw FileNotFoundError(path);
 
     if ( path2fd_.count(path) ) //file is already opening
-        return path2fd_[path];
+        return -1;
     int fd = open(path.c_str(), O_RDWR);
     if( fd == -1 ) //open error
         throw UnixError();
     else {
-        fd2pageno_[fd] = 1;
-        path2fd_.emplace(path, fd);
-        fd2path_.emplace(fd, path);
+        path2fd_.insert({path, fd});
+        fd2path_.insert({fd, path});
     }
     return fd;
 }
@@ -157,14 +154,11 @@ void DiskManager::close_file(int fd) {
     // 注意不能关闭未打开的文件，并且需要更新文件打开列表
     if ( !fd2path_.count(fd) ) //file not open
         throw FileNotOpenError(fd);
-    if( close(fd) == -1 ) {
+    if( close(fd) == -1 )
         throw UnixError();
-        return ;
-    }
     //update the map
     path2fd_.erase(fd2path_[fd]);
     fd2path_.erase(fd);
-    fd2pageno_[fd] = 0;
 }
 
 int DiskManager::GetFileSize(const std::string &file_name) {
