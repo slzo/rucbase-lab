@@ -45,7 +45,10 @@ void ClockReplacer::Unpin(frame_id_t frame_id) {
 }
 
 size_t ClockReplacer::Size() {
+//<<<<<<< HEAD
     const std::lock_guard<mutex_t> guard(mutex_);
+//=======
+//>>>>>>> 73b7923430007cbb7b517b0632ad4e27598a31a0
     // Todo:
     // 返回在[arg0, arg1)范围内满足特定条件(arg2)的元素的数目
     // return all items that in the range[circular_.begin, circular_.end )

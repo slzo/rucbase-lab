@@ -6,12 +6,17 @@
  * @return key_idx，范围为[0,num_key)，如果返回的key_idx=num_key，则表示target大于最后一个key
  * @note 返回key index（同时也是rid index），作为slot no
  */
+#define COMPARE(x,y) ix_compare( x, get_key(y), file_hdr->col_type, file_hdr->col_len )
+#define NUMKEY page_hdr->num_key
+
 int IxNodeHandle::lower_bound(const char *target) const {
     // Todo:
     // 查找当前节点中第一个大于等于target的key，并返回key的位置给上层
     // 提示: 可以采用多种查找方式，如顺序遍历、二分查找等；使用ix_compare()函数进行比较
-
-    return -1;
+    for( int i = 0; i < NUMKEY; i++ )
+        if( COMPARE( target, i ) != 1 )
+            return i;
+    return NUMKEY;
 }
 
 /**
@@ -24,8 +29,10 @@ int IxNodeHandle::upper_bound(const char *target) const {
     // Todo:
     // 查找当前节点中第一个大于target的key，并返回key的位置给上层
     // 提示: 可以采用多种查找方式：顺序遍历、二分查找等；使用ix_compare()函数进行比较
-
-    return -1;
+    for( int i = 1; i < NUMKEY; i++ )
+        if( COMPARE( target, i ) == -1 )
+            return i;
+    return NUMKEY;
 }
 
 /**
@@ -42,8 +49,13 @@ bool IxNodeHandle::LeafLookup(const char *key, Rid **value) {
     // 2. 判断目标key是否存在
     // 3. 如果存在，获取key对应的Rid，并赋值给传出参数value
     // 提示：可以调用lower_bound()和get_rid()函数。
-
-    return false;
+    int index = lower_bound(key); // 1
+    if( index == NUMKEY ) // 2
+        return false;
+    if( COMPARE( key, index ) )
+        return false;
+    *value = get_rid( index ); // 3
+    return true;
 }
 
 /**
@@ -56,8 +68,8 @@ page_id_t IxNodeHandle::InternalLookup(const char *key) {
     // 1. 查找当前非叶子节点中目标key所在孩子节点（子树）的位置
     // 2. 获取该孩子节点（子树）所在页面的编号
     // 3. 返回页面编号
-
-    return -1;
+    int index = upper_bound( key );
+    return get_rid( index-1 )->page_no;
 }
 
 /**
@@ -80,6 +92,22 @@ void IxNodeHandle::insert_pairs(int pos, const char *key, const Rid *rid, int n)
     // 2. 通过key获取n个连续键值对的key值，并把n个key值插入到pos位置
     // 3. 通过rid获取n个连续键值对的rid值，并把n个rid值插入到pos位置
     // 4. 更新当前节点的键数量
+    if( pos<0 || pos>NUMKEY ) // 1
+        return;
+
+    int mv_off = NUMKEY - pos;
+
+    char *key_slot = get_key( pos ); // 2
+    int len = file_hdr->col_len;
+    memmove( key_slot+n*file_hdr->col_len, key_slot, mv_off*len ); // right shift old
+    memcpy( key_slot, key, n*len ); // insert new
+
+    Rid *rid_slot = get_rid( pos ); //3
+    len = sizeof(Rid);
+    memmove( rid_slot+n, rid_slot, mv_off*len );
+    memcpy( rid_slot, rid, n*len );
+
+    NUMKEY += n;
 
 }
 
@@ -101,8 +129,10 @@ int IxNodeHandle::Insert(const char *key, const Rid &value) {
     // 2. 如果key重复则不插入
     // 3. 如果key不重复则插入键值对
     // 4. 返回完成插入操作之后的键值对数量
-
-    return -1;
+    int index = lower_bound( key ); // 1
+    if( index==NUMKEY || COMPARE( key, index ) )
+        insert_pair( index, key, value ); // 3
+    return NUMKEY; // 4
 }
 
 /**
