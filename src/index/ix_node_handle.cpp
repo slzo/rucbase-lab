@@ -95,16 +95,16 @@ void IxNodeHandle::insert_pairs(int pos, const char *key, const Rid *rid, int n)
     if( pos<0 || pos>NUMKEY ) // 1
         return;
 
-    int mv_off = NUMKEY - pos;
+    int mv_size = NUMKEY - pos;
 
     char *key_slot = get_key( pos ); // 2
     int len = file_hdr->col_len;
-    memmove( key_slot+n*file_hdr->col_len, key_slot, mv_off*len ); // right shift old
+    memmove( key_slot+n*file_hdr->col_len, key_slot, mv_size*len ); // right shift old
     memcpy( key_slot, key, n*len ); // insert new
 
     Rid *rid_slot = get_rid( pos ); //3
     len = sizeof(Rid);
-    memmove( rid_slot+n, rid_slot, mv_off*len );
+    memmove( rid_slot+n, rid_slot, mv_size*len );
     memcpy( rid_slot, rid, n*len );
 
     NUMKEY += n;
@@ -145,6 +145,17 @@ void IxNodeHandle::erase_pair(int pos) {
     // 1. 删除该位置的key
     // 2. 删除该位置的rid
     // 3. 更新结点的键值对数量
+    if( pos>=NUMKEY || pos<0 )
+        return;
+    int mv_size = NUMKEY-pos-1;
+    char *key_slot = get_key( pos );
+    int len = file_hdr->col_len;
+    memmove( key_slot, key_slot+len, mv_size*len ); // 2
+
+    Rid *rid_slot = get_rid( pos );
+    len = sizeof( Rid );
+    memmove( rid_slot, rid_slot+1, mv_size*len );
+    NUMKEY -= 1;
 
 }
 
@@ -159,8 +170,10 @@ int IxNodeHandle::Remove(const char *key) {
     // 1. 查找要删除键值对的位置
     // 2. 如果要删除的键值对存在，删除键值对
     // 3. 返回完成删除操作后的键值对数量
-
-    return -1;
+    int index = lower_bound( key ); // 1
+    if( index!=NUMKEY && !COMPARE( key, index ) ) // 2
+        erase_pair( index );
+    return NUMKEY; // 3
 }
 
 /**
