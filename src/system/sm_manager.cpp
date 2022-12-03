@@ -18,6 +18,29 @@ void SmManager::create_db(const std::string &db_name) {
     // lab3 task1 Todo
     // 利用*inx命令创建目录作为数据库
     // lab3 task1 Todo End
+
+    //check db exist or not
+    if( is_dir(db_name) )
+        throw DatabaseExistsError(db_name);
+    //create a subdirectory for the database
+    std::string cmd = "mkdir "+db_name;
+    if( system(cmd.c_str()) < 0 )
+        throw UnixError();
+    if( chdir(db_name.c_str()) < 0 )
+        throw UnixError();
+    // create DBMeta file & system catalog
+    DbMeta *db = new DbMeta();
+    db->name_ = db_name;
+
+    std::ofstream ofs(DB_META_NAME);
+    ofs << *db;
+    delete db;
+
+    //cd back to root dir
+    if( chdir("..") < 0 )
+        throw UnixError();
+
+
 }
 
 void SmManager::drop_db(const std::string &db_name) {
@@ -66,6 +89,24 @@ void SmManager::close_db() {
     // 关闭rm_manager_ ix_manager_文件
     // 清理fhs_, ihs_
     // lab3 task1 Todo End
+    std::ofstream ofs(DB_META_NAME);
+    ofs << db_;
+    db_.name_.clear();
+    db_.tabs_.clear();
+
+    // close record files & index files
+    for( auto &entry:fhs_ )
+        rm_manager_->close_file( entry.second.get() );
+    for( auto &entry:ihs_ )
+        ix_manager_->close_index( entry.second.get() );
+
+    // clear fhs_ ihs_
+    fhs_.clear();
+    ihs_.clear();
+
+    // cd to database dir
+    if (chdir("..") < 0)
+        throw UnixError();
 }
 
 void SmManager::show_tables(Context *context) {
@@ -130,6 +171,22 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
     // Close & destroy record file
     // Close & destroy index file
     // lab3 task1 Todo End
+
+    // find table index in db_ meta
+    TabMeta &tab = db_.get_table( tab_name );
+
+    // close & delete record file
+    rm_manager_->close_file( fhs_.at(tab_name).get() );
+    rm_manager_->destroy_file( tab_name );
+
+    // close & delete index file
+    for( auto &col : tab.cols )
+        if( col.index )
+            drop_index( tab_name, col.name, context );
+
+    // last: delete the tab_information
+    db_.tabs_.erase( tab_name );
+    fhs_.erase( tab_name );
 }
 
 void SmManager::create_index(const std::string &tab_name, const std::string &col_name, Context *context) {

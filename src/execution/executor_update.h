@@ -37,6 +37,8 @@ class UpdateExecutor : public AbstractExecutor {
                 // lab3 task3 Todo
                 // 获取需要的索引句柄,填充vector ihs
                 // lab3 task3 Todo end
+
+                ihs[lhs_col_idx] = sm_manager_->ihs_.at( sm_manager_->get_ix_manager()->get_index_name(tab_name_,lhs_col_idx) ).get();
             }
         }
         // Update each rid from record file and index file
@@ -46,6 +48,13 @@ class UpdateExecutor : public AbstractExecutor {
             // Remove old entry from index
             // lab3 task3 Todo end
 
+            for( size_t i = 0; i < set_clauses_.size(); i++ ) {
+                auto col = tab_.get_col(set_clauses_[i].lhs.col_name);
+                memcpy(rec->data+col->offset,set_clauses_[i].rhs.raw->data,col->len);
+                if( col->index ) {
+                     ihs[i]->delete_entry( rec->data+col->offset, context_->txn_ );
+                }
+            }
             // record a update operation into the transaction
             RmRecord update_record{rec->size};
             memcpy(update_record.data, rec->data, rec->size);
@@ -53,10 +62,18 @@ class UpdateExecutor : public AbstractExecutor {
             // lab3 task3 Todo
             // Update record in record file
             // lab3 task3 Todo end
+            fh_->update_record( rid, rec->data, context_ );
 
             // lab3 task3 Todo
             // Insert new entry into index
             // lab3 task3 Todo end
+            for ( size_t i = 0; i < set_clauses_.size(); i++ ) {
+                auto col = tab_.get_col(set_clauses_[i].lhs.col_name);
+                if ( col->index ) {
+                    auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, i)).get();
+                    ih->insert_entry( rec->data+col->offset, rid, context_->txn_);
+                }
+            }
         }
         return nullptr;
     }

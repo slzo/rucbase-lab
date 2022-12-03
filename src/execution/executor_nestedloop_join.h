@@ -49,6 +49,12 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
             // 如果当前innerTable(右表或算子)扫描完了
             // 你需要移动到outerTable(左表)下一个记录,然后把右表移动到第一个记录的位置
             // lab3 task2 Todo end
+            left_->nextTuple();
+            if (left_->is_end())
+                break;
+            feed_right();
+            right_->beginTuple();
+
         }
     }
 
@@ -60,6 +66,15 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
             // 如果右节点扫描完了
             // 你需要把左表移动到下一个记录并把右节点回退到第一个记录
             // lab3 task2 Todo end
+
+            // left move to next record
+            left_->nextTuple();
+            if( left_->is_end() )
+                break;
+            // right back to the begin
+            feed_right();
+            right_->beginTuple();
+
         }
     }
 
@@ -72,6 +87,14 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
         // 你需要调用左右算子的Next()获取下一个记录进行拼接赋给返回的连接结果std::make_unique<RmRecord>record中
         // memecpy()可能对你有所帮助
         // lab3 task2 Todo End
+
+        // use Next
+        auto left = left_->Next();
+        auto right = right_->Next();
+        // join
+        memcpy( record->data, left->data, left->size );
+        memcpy( record->data+left->size, right->data, right->size );
+
         return record;
     }
 

@@ -57,6 +57,7 @@ class ProjectionExecutor : public AbstractExecutor {
             // lab3 task2 Todo
             // 利用memcpy生成proj_rec
             // lab3 task2 Todo End
+            memcpy( proj_rec->data+proj_col.offset, prev_rec->data+prev_col.offset, prev_col.len );
         }
         return proj_rec;
     }

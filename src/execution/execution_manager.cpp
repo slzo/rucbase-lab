@@ -98,6 +98,9 @@ void QlManager::insert_into(const std::string &tab_name, std::vector<Value> valu
     // make InsertExecutor
     // call InsertExecutor.Next()
     // lab3 task3 Todo end
+
+    auto IE = std::make_unique<InsertExecutor>(sm_manager_, tab_name, values, context);
+    IE->Next();
 }
 
 void QlManager::delete_from(const std::string &tab_name, std::vector<Condition> conds, Context *context) {
@@ -112,6 +115,12 @@ void QlManager::delete_from(const std::string &tab_name, std::vector<Condition> 
     // 创建合适的scan executor(有索引优先用索引)
     // lab3 task3 Todo end
 
+    auto index = get_indexNo( tab_name, conds );
+    if( index == -1 ) // check have index or not
+        scanExecutor = std::make_unique<SeqScanExecutor>(sm_manager_, tab_name, conds, context);
+    else
+        scanExecutor =  std::make_unique<IndexScanExecutor>(sm_manager_, tab_name, conds, index, context);
+
     for (scanExecutor->beginTuple(); !scanExecutor->is_end(); scanExecutor->nextTuple()) {
         rids.push_back(scanExecutor->rid());
     }
@@ -120,6 +129,8 @@ void QlManager::delete_from(const std::string &tab_name, std::vector<Condition> 
     // make deleteExecutor
     // call deleteExecutor.Next()
     // lab3 task3 Todo end
+    auto dE = std::make_unique<DeleteExecutor>(sm_manager_, tab_name, conds, rids, context);
+    dE->Next();
 }
 
 void QlManager::update_set(const std::string &tab_name, std::vector<SetClause> set_clauses,
@@ -145,6 +156,20 @@ void QlManager::update_set(const std::string &tab_name, std::vector<SetClause> s
     // make updateExecutor
     // call updateExecutor.Next()
     // lab3 task3 Todo end
+
+    // make sE
+    std::unique_ptr<AbstractExecutor> sE;
+    auto index = get_indexNo(tab_name, conds);
+    if(  index == -1 )
+        sE = std::make_unique<SeqScanExecutor>(sm_manager_, tab_name, conds, context);
+    else
+        sE =  std::make_unique<IndexScanExecutor>(sm_manager_, tab_name, conds, index, context);
+    // for store rid ---> rids
+    for( sE->beginTuple(); !sE->is_end(); sE->nextTuple() )
+        rids.push_back( sE->rid() );
+    // make uE & call next
+    auto uE = std::make_unique<UpdateExecutor>(sm_manager_, tab_name, set_clauses, conds, rids, context);
+    uE->Next();
 }
 
 /**
@@ -205,17 +230,27 @@ void QlManager::select_from(std::vector<TabCol> sel_cols, const std::vector<std:
         // 根据get_indexNo判断conds上有无索引
         // 创建合适的scan executor(有索引优先用索引)存入table_scan_executors
         // lab3 task2 Todo end
+
+        if( index_no == -1 ) // check have index or not
+            table_scan_executors[i] = std::make_unique<SeqScanExecutor>(sm_manager_, tab_names[i], curr_conds, context);
+        else
+            table_scan_executors[i] = std::make_unique<IndexScanExecutor>(sm_manager_, tab_names[i], curr_conds, index_no, context);
+
     }
     assert(conds.empty());
 
     std::unique_ptr<AbstractExecutor> executorTreeRoot = std::move(table_scan_executors.back());
+
 
     // lab3 task2 Todo
     // 构建算子二叉树
     // 逆序遍历tab_nodes为左节点, 现query_plan为右节点,生成joinNode作为新query_plan 根节点
     // 生成query_plan tree完毕后, 根节点转换成投影算子
     // lab3 task2 Todo End
-
+    if( tab_names.size() >= 2 )
+        for( int i = tab_names.size()-2; i >= 0 ; i--)
+            executorTreeRoot = std::make_unique<NestedLoopJoinExecutor>(std::move(table_scan_executors[i]), std::move(executorTreeRoot));
+    executorTreeRoot = std::make_unique<ProjectionExecutor>(std::move(executorTreeRoot), sel_cols);
     // Column titles
     std::vector<std::string> captions;
     captions.reserve(sel_cols.size());
