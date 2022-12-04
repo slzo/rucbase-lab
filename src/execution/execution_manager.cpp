@@ -99,7 +99,7 @@ void QlManager::insert_into(const std::string &tab_name, std::vector<Value> valu
     // call InsertExecutor.Next()
     // lab3 task3 Todo end
 
-    auto IE = std::make_unique<InsertExecutor>(sm_manager_, tab_name, values, context);
+    auto IE = new InsertExecutor(sm_manager_, tab_name, values, context);
     IE->Next();
 }
 
@@ -129,7 +129,7 @@ void QlManager::delete_from(const std::string &tab_name, std::vector<Condition> 
     // make deleteExecutor
     // call deleteExecutor.Next()
     // lab3 task3 Todo end
-    auto dE = std::make_unique<DeleteExecutor>(sm_manager_, tab_name, conds, rids, context);
+    auto dE = new DeleteExecutor(sm_manager_, tab_name, conds, rids, context);
     dE->Next();
 }
 
@@ -158,17 +158,17 @@ void QlManager::update_set(const std::string &tab_name, std::vector<SetClause> s
     // lab3 task3 Todo end
 
     // make sE
-    std::unique_ptr<AbstractExecutor> sE;
+    AbstractExecutor* sE;
     auto index = get_indexNo(tab_name, conds);
     if(  index == -1 )
-        sE = std::make_unique<SeqScanExecutor>(sm_manager_, tab_name, conds, context);
+        sE = new SeqScanExecutor(sm_manager_, tab_name, conds, context);
     else
-        sE =  std::make_unique<IndexScanExecutor>(sm_manager_, tab_name, conds, index, context);
+        sE = new IndexScanExecutor(sm_manager_, tab_name, conds, index, context);
     // for store rid ---> rids
     for( sE->beginTuple(); !sE->is_end(); sE->nextTuple() )
         rids.push_back( sE->rid() );
     // make uE & call next
-    auto uE = std::make_unique<UpdateExecutor>(sm_manager_, tab_name, set_clauses, conds, rids, context);
+    auto uE = new UpdateExecutor(sm_manager_, tab_name, set_clauses, conds, rids, context);
     uE->Next();
 }
 
@@ -248,7 +248,7 @@ void QlManager::select_from(std::vector<TabCol> sel_cols, const std::vector<std:
     // 生成query_plan tree完毕后, 根节点转换成投影算子
     // lab3 task2 Todo End
     if( tab_names.size() >= 2 )
-        for( int i = tab_names.size()-2; i >= 0 ; i--)
+        for( size_t i = tab_names.size()-2; i != (size_t)-1 ; i--)
             executorTreeRoot = std::make_unique<NestedLoopJoinExecutor>(std::move(table_scan_executors[i]), std::move(executorTreeRoot));
     executorTreeRoot = std::make_unique<ProjectionExecutor>(std::move(executorTreeRoot), sel_cols);
     // Column titles
