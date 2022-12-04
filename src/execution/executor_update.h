@@ -51,9 +51,8 @@ class UpdateExecutor : public AbstractExecutor {
             for( size_t i = 0; i < set_clauses_.size(); i++ ) {
                 auto col = tab_.get_col(set_clauses_[i].lhs.col_name);
                 memcpy(rec->data+col->offset,set_clauses_[i].rhs.raw->data,col->len);
-                if( col->index ) {
+                if( col->index )
                      ihs[i]->delete_entry( rec->data+col->offset, context_->txn_ );
-                }
             }
             // record a update operation into the transaction
             RmRecord update_record{rec->size};
