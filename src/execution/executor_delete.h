@@ -56,6 +56,10 @@ class DeleteExecutor : public AbstractExecutor {
             // record a delete operation into the transaction
             RmRecord delete_record{rec->size};
             memcpy(delete_record.data, rec->data, rec->size);
+
+            // modify wset
+            WriteRecord *wrec = new WriteRecord(WType::DELETE_TUPLE, tab_name_, delete_record);
+            context_->txn_->AppendWriteRecord(wrec);
         }
         return nullptr;
     }

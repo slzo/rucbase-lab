@@ -231,3 +231,34 @@ void SmManager::drop_index(const std::string &tab_name, const std::string &col_n
     ihs_.erase(index_name);
     col->index = false;
 }
+
+
+// lab4 used Transaction rollback management
+void SmManager::rollback_insert(const std::string &tab_name, const Rid &rid, Context *context) {
+    auto tab = db_.get_table(tab_name);
+    auto file_handle = fhs_.at(tab_name).get();
+    for (size_t col=0; col<tab.cols.size(); col++)
+        if (tab.cols[col].index)
+            ihs_.at(get_ix_manager()->get_index_name(tab_name, col)).get()->delete_entry(file_handle->get_record(rid, context)->data+tab.cols[col].offset, nullptr);
+    fhs_.at(tab_name).get()->delete_record(rid, context);
+}
+
+void SmManager::rollback_delete(const std::string &tab_name, const RmRecord &record, Context *context) {
+    auto tab = db_.get_table(tab_name);
+    auto file_handle = fhs_.at(tab_name).get();
+    for (size_t col=0; col<tab.cols.size(); col++)
+        if (tab.cols[col].index)
+            ihs_.at(get_ix_manager()->get_index_name(tab_name, col)).get()->insert_entry(record.data+tab.cols[col].offset, file_handle->insert_record(record.data, context), context->txn_);
+}
+
+void SmManager::rollback_update(const std::string &tab_name, const Rid &rid, const RmRecord &record, Context *context) {
+    auto tab = db_.get_table(tab_name);
+    auto file_handle = fhs_.at(tab_name).get();
+    for (size_t col=0; col<tab.cols.size(); col++)
+        if (tab.cols[col].index)
+            ihs_.at(get_ix_manager()->get_index_name(tab_name, col)).get()->delete_entry(file_handle->get_record(rid, context)->data+tab.cols[col].offset, nullptr);
+    fhs_.at(tab_name).get()->update_record(rid, record.data, context);
+    for (size_t col=0; col<tab.cols.size(); col++)
+        if (tab.cols[col].index)
+            ihs_.at(get_ix_manager()->get_index_name(tab_name, col)).get()->insert_entry(record.data+tab.cols[col].offset, rid, context->txn_);
+}

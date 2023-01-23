@@ -73,6 +73,9 @@ class UpdateExecutor : public AbstractExecutor {
                     ih->insert_entry( rec->data+col->offset, rid, context_->txn_);
                 }
             }
+            // modify wset
+            WriteRecord *wrec = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, update_record);
+            context_->txn_->AppendWriteRecord(wrec);
         }
         return nullptr;
     }

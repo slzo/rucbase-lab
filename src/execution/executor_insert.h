@@ -59,6 +59,10 @@ class InsertExecutor : public AbstractExecutor {
                 ih->insert_entry(rec.data + col.offset, rid_, context_->txn_);
             }
         }
+
+        // modify wset
+        WriteRecord *wrec = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
+        context_->txn_->AppendWriteRecord(wrec);
         return nullptr;
     }
     Rid &rid() override { return rid_; }
