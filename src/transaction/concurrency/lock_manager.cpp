@@ -61,9 +61,7 @@ bool LockManager::LockSharedOnRecord(Transaction *txn, const Rid &rid, int tab_f
 bool LockManager::LockExclusiveOnRecord(Transaction *txn, const Rid &rid, int tab_fd) {
     std::unique_lock<std::mutex> lock{latch_}; // 1
 
-    if( txn->GetIsolationLevel()==IsolationLevel::READ_UNCOMMITTED || // 2
-        txn->GetState()==TransactionState::SHRINKING
-    )
+    if(  txn->GetState()==TransactionState::SHRINKING ) // 2
         txn->SetState(TransactionState::ABORTED);
     if(txn->GetState()==TransactionState::ABORTED)
         return false;
@@ -153,9 +151,7 @@ bool LockManager::LockSharedOnTable(Transaction *txn, int tab_fd) {
 bool LockManager::LockExclusiveOnTable(Transaction *txn, int tab_fd) {
     std::unique_lock<std::mutex> lock{latch_}; // 1
 
-    if( txn->GetIsolationLevel()==IsolationLevel::READ_UNCOMMITTED || // 2
-        txn->GetState()==TransactionState::SHRINKING
-    )
+    if(  txn->GetState()==TransactionState::SHRINKING ) // 2
         txn->SetState(TransactionState::ABORTED);
     if(txn->GetState()==TransactionState::ABORTED)
         return false;
@@ -239,9 +235,7 @@ bool LockManager::LockISOnTable(Transaction *txn, int tab_fd) {
 bool LockManager::LockIXOnTable(Transaction *txn, int tab_fd) {
     std::unique_lock<std::mutex> lock{latch_}; // 1
 
-    if( txn->GetIsolationLevel()==IsolationLevel::READ_UNCOMMITTED || // 2
-        txn->GetState()==TransactionState::SHRINKING
-    )
+    if(  txn->GetState()==TransactionState::SHRINKING ) // 2
         txn->SetState(TransactionState::ABORTED);
     if(txn->GetState()==TransactionState::ABORTED)
         return false;
