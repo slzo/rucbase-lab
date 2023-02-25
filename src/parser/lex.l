@@ -55,6 +55,13 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 {white_space} { /* ignore white space */ }
 {new_line} { /* ignore new line */ }
     /* keywords */
+    /*------add keywords here for order by lab------*/
+"ORDER" { return ORDER; }
+"BY" { return BY; }
+"ASC" { return ASC; }
+    /*"DESC" { return DESC; }*/
+"LIMIT" { return LIMIT; }
+    /*---------------------------------------------*/
 "SHOW" { return SHOW; }
 "BEGIN" { return TXN_BEGIN; }
 "COMMIT" { return TXN_COMMIT; }

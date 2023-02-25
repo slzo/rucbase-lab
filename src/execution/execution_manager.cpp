@@ -204,7 +204,7 @@ std::vector<Condition> pop_conds(std::vector<Condition> &conds, const std::vecto
  * @param conds select plan 选取条件
  */
 void QlManager::select_from(std::vector<TabCol> sel_cols, const std::vector<std::string> &tab_names,
-                            std::vector<Condition> conds, Context *context) {
+                            std::vector<Condition> conds, Context *context, std::vector<OrderCond> orderconditions, int limitvalue ) {
     // Parse selector
     auto all_cols = get_all_cols(tab_names);
     if (sel_cols.empty()) {
@@ -262,9 +262,11 @@ void QlManager::select_from(std::vector<TabCol> sel_cols, const std::vector<std:
     rec_printer.print_separator(context);
     rec_printer.print_record(captions, context);
     rec_printer.print_separator(context);
-    // Print records
+
+    /*------ print record by the ordercondition and selectlimitnum------*/
     size_t num_rec = 0;
     // 执行query_plan
+    std::vector<std::vector<std::string>> selectrecords;
     for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
         auto Tuple = executorTreeRoot->Next();
         std::vector<std::string> columns;
@@ -281,9 +283,37 @@ void QlManager::select_from(std::vector<TabCol> sel_cols, const std::vector<std:
             }
             columns.push_back(col_str);
         }
-        rec_printer.print_record(columns, context);
+        // rec_printer.print_record(columns, context);
+        selectrecords.push_back(columns); // don't print, store the select result
         num_rec++;
     }
+    // order the record by ordercondition
+    for(auto ordercondition = orderconditions.rbegin(); ordercondition != orderconditions.rend(); ordercondition++) {
+        auto colname = ordercondition->colname;
+        auto orderop = ordercondition->orderop;
+        int colline = captions.size()-1;
+        for(;colline>=0;colline--) //找到orderbycondition所在的列
+            if(!colname.compare(captions[colline]))
+                break;
+        // select sort by the orderby
+        int len = selectrecords.size();
+        for(int i=0; i<len; i++)
+            for(int j=i+1; j<len; j++) {
+                if( ( (selectrecords[i][colline]<selectrecords[j][colline] && !orderop.compare("DESC")) ||
+                      (selectrecords[i][colline]>selectrecords[j][colline] && !orderop.compare("ASC"))
+                    )
+                    ^
+                    (selectrecords[i][colline][0]=='-' && selectrecords[j][colline][0]=='-') //防止出现负数
+                  )
+                    swap(selectrecords[i],selectrecords[j]);
+            }
+    }
+    // print the record by the selectlimitnum
+    int lens = limitvalue==-1 ? selectrecords.size() : limitvalue;
+    for( int i=0; i < lens; i++ )
+        rec_printer.print_record(selectrecords[i], context);
+    /*--------------------------------------------------------------------*/
+
     // Print footer
     rec_printer.print_separator(context);
     // Print record count

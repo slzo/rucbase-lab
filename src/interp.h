@@ -144,7 +144,14 @@ class Interp {
                 sel_cols.push_back(sel_col);
             }
             SetTransaction(txn_id, context);
-            ql_manager_->select_from(sel_cols, x->tabs, conds, context);
+            /*------add order by operation------*/
+            std::vector<OrderCond> orderconditions;
+            for (auto &i : x->orders) {
+                OrderCond tmp = {.colname = i->colname, .orderop = i->orderop};
+                orderconditions.push_back(tmp);
+            }
+            ql_manager_->select_from(sel_cols, x->tabs, conds, context, orderconditions, x->limitvalue);
+            /*----------------------------------*/
             if(context->txn_->GetTxnMode() == false)
                 txn_mgr_->Commit(context->txn_, context->log_mgr_);
         } else if (auto x = std::dynamic_pointer_cast<ast::TxnBegin>(root)) {

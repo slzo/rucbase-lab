@@ -79,13 +79,18 @@ struct SetClause {
     Value rhs;
 };
 
+struct OrderCond {
+    std::string colname; // order by the colname
+    std::string orderop; // asc / desc
+};
+
 class QlManager {
    private:
     SmManager *sm_manager_;
 
    public:
     QlManager(SmManager *sm_manager) : sm_manager_(sm_manager) {}
-
+;
     void insert_into(const std::string &tab_name, std::vector<Value> values, Context *context);
 
     void delete_from(const std::string &tab_name, std::vector<Condition> conds, Context *context);
@@ -94,7 +99,7 @@ class QlManager {
                     std::vector<Condition> conds, Context *context);
 
     void select_from(std::vector<TabCol> sel_cols, const std::vector<std::string> &tab_names,
-                     std::vector<Condition> conds, Context *context);
+                     std::vector<Condition> conds, Context *context, std::vector<OrderCond> orderconditions, int limitvalue );
 
    private:
     TabCol check_column(const std::vector<ColMeta> &all_cols, TabCol target);
@@ -103,3 +108,5 @@ class QlManager {
                                               const std::vector<Condition> &conds);
     int get_indexNo(std::string tab_name, std::vector<Condition> curr_conds);
 };
+
+

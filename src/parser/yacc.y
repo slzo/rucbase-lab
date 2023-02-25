@@ -21,6 +21,9 @@ using namespace ast;
 %define parse.error verbose
 
 // keywords
+
+%token ORDER BY ASC LIMIT // order by lab use
+
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM
 WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK
 // non-keywords
@@ -49,6 +52,10 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %type <sv_cond> condition
 %type <sv_conds> whereClause optWhereClause
 
+%type <sv_str> OrderOp
+%type <sv_order> Order
+%type <sv_orders> Orders
+%type <sv_int> Limit
 %%
 start:
         stmt ';'
@@ -142,9 +149,9 @@ dml:
     {
         $$ = std::make_shared<UpdateStmt>($2, $4, $5);
     }
-    |   SELECT selector FROM tableList optWhereClause
+    |   SELECT selector FROM tableList optWhereClause Orders Limit
     {
-        $$ = std::make_shared<SelectStmt>($2, $4, $5);
+        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6, $7);
     }
     ;
 
@@ -337,4 +344,23 @@ tableList:
 tbName: IDENTIFIER;
 
 colName: IDENTIFIER;
+/*------add new rule for order by lab------*/
+OrderOp:
+    { $$ = "ASC"; }
+    | DESC { $$ = "DESC"; }
+    | ASC { $$ = "ASC"; }
+    ;
+Order:
+    colName OrderOp { $$ = std::make_shared<OrderExpr>($1, $2); }
+    ;
+Orders:
+    /* epsilon */ { /* ignore*/ }
+    | ORDER BY Order { $$ = std::vector<std::shared_ptr<OrderExpr>>{$3}; }
+    | Orders ',' Order { $$.push_back($3); }
+    ;
+Limit:
+    { $$ = -1; }
+    | LIMIT VALUE_INT { $$ = $2; }
+    ;
+/*-------------*/
 %%
