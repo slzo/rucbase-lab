@@ -122,7 +122,6 @@ bool IxIndexHandle::insert_entry(const char *key, const Rid &value, Transaction 
         if( file_hdr_.last_leaf == PAGENO( leaf ) )
             file_hdr_.last_leaf = PAGENO( split );
         InsertIntoParent( leaf, split->get_key(0), split, transaction );
-        // buffer_pool_manager_->UnpinPage( PAGEID(split), true );
     }
     /*------插入完成,自下往上释放锁------*/
     while( transaction->GetPageSet()->size() ) {
@@ -133,7 +132,6 @@ bool IxIndexHandle::insert_entry(const char *key, const Rid &value, Transaction 
     /*---------------------------*/
     if(res.second)
         root_latch_.unlock();
-    // buffer_pool_manager_->UnpinPage( PAGEID(leaf), re );
     return re;
 }
 
@@ -167,7 +165,6 @@ IxNodeHandle *IxIndexHandle::Split(IxNodeHandle *node) {
         split->page_hdr->next_leaf = node->page_hdr->next_leaf;
         IxNodeHandle *next_leaf = FetchNode(split->page_hdr->next_leaf);
         next_leaf->page_hdr->prev_leaf = PAGENO(split);
-        // buffer_pool_manager_->UnpinPage( PAGEID(next_leaf), true );
         node->page_hdr->next_leaf = PAGENO(split);
 
     }
@@ -211,7 +208,6 @@ void IxIndexHandle::InsertIntoParent(IxNodeHandle *old_node, const char *key, Ix
         new_root->insert_pair( 1, key, {PAGENO(new_node), -1} );
         new_node->page_hdr->parent = old_node->page_hdr->parent = PAGENO(new_root);
         file_hdr_.root_page = PAGENO(new_root);
-        // buffer_pool_manager_->UnpinPage( PAGEID(new_node), true );
     }
     else {
         IxNodeHandle *parent = FetchNode( old_node->GetParentPageNo() );
@@ -221,7 +217,6 @@ void IxIndexHandle::InsertIntoParent(IxNodeHandle *old_node, const char *key, Ix
             IxNodeHandle *split = Split( parent );
             InsertIntoParent( parent, split->get_key(0), split, transaction );
         }
-        // buffer_pool_manager_->UnpinPage( PAGEID(parent), true );
     }
 }
 
@@ -255,7 +250,6 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
     /*---------------------------*/
     if(res.second)
         root_latch_.unlock();
-    // buffer_pool_manager_->UnpinPage( PAGEID(leaf), re );
 
     return re;
 }
@@ -294,14 +288,10 @@ bool IxIndexHandle::CoalesceOrRedistribute(IxNodeHandle *node, Transaction *tran
         IxNodeHandle *neighbor = FetchNode( parent->get_rid( index+(index?-1:1) )->page_no ); // 3
         if( node->GetSize()+neighbor->GetSize() >= node->GetMinSize()*2 ) { // 4
             Redistribute( neighbor, node, parent, index );
-            // buffer_pool_manager_->UnpinPage( PAGEID(parent), true );
-            // buffer_pool_manager_->UnpinPage( PAGEID(neighbor), true );
             return false;
         }
         else {
             Coalesce( &neighbor, &node, &parent, index, transaction ); // 5
-            // buffer_pool_manager_->UnpinPage( PAGEID(parent), true );
-            // buffer_pool_manager_->UnpinPage( PAGEID(neighbor), true );
             return true;
         }
     }
@@ -324,7 +314,6 @@ bool IxIndexHandle::AdjustRoot(IxNodeHandle *old_root_node) {
         release_node_handle( *old_root_node );
         file_hdr_.root_page = PAGENO( child );
         child->SetParentPageNo(IX_NO_PAGE);
-        // buffer_pool_manager_->UnpinPage( PAGEID(child), true );
         return true;
     }
     else if( old_root_node->IsLeafPage() && !old_root_node->page_hdr->num_key ){ // 2
